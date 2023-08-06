@@ -1,0 +1,35 @@
+{
+  "name": "jest-runner-remote",
+  "version": "0.1.0",
+  "description": "Run Jest tests anywhere - get reporting in your terminal",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint",
+    "test": "jest"
+  },
+  "keywords": [
+    "jest",
+    "jest-runner",
+    "remote"
+  ],
+  "author": "Kræn Hansen <mail@kraenhansen.dk>",
+  "license": "ISC",
+  "dependencies": {
+    "cosmiconfig": "^8.2.0",
+    "ws": "^8.13.0"
+  },
+  "peerDependencies": {
+    "jest": "^29"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.5"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "incremental": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "declaration": true,
+    "outDir": "dist"
+  }
+}

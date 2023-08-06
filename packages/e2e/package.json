@@ -1,0 +1,24 @@
+{
+  "name": "jest-remote-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "wireit"
+  },
+  "wireit": {
+    "test": {
+      "command": "jest",
+      "dependencies": [
+        "../runner:build",
+        "../client:build"
+      ]
+    }
+  },
+  "dependencies": {
+    "jest-remote-runner": "*",
+    "jest-remote-client": "*"
+  },
+  "jest-runner-remote": {
+    "command": "npx jest-runner-remote-client; echo 'hi!'"
+  }
+}

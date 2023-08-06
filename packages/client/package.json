@@ -1,0 +1,34 @@
+{
+  "name": "jest-runner-remote-client",
+  "version": "0.1.0",
+  "description": "Run Jest tests anywhere - get reporting in your terminal",
+  "bin": {
+    "jest-runner-remote-client": "./cli.js"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "scripts": {
+    "start": "wireit",
+    "build": "tsc",
+    "lint": "eslint"
+  },
+  "wireit": {
+    "start": {
+      "command": "./cli.js",
+      "dependencies": ["build"]
+    }
+  },
+  "keywords": [
+    "jest",
+    "jest-runner",
+    "remote"
+  ],
+  "author": "Kræn Hansen <mail@kraenhansen.dk>",
+  "license": "ISC",
+  "dependencies": {
+    "isomorphic-ws": "^5.0.0",
+    "typed-emitter": "^2.1.0",
+    "ws": "^8.13.0"
+  }
+}
