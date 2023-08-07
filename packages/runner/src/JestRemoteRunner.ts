@@ -51,19 +51,20 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     watcher: TestWatcher,
     options: TestRunnerOptions
   ): Promise<void> {
-    await reportProgress({
-      subject: "Server",
-      action: ,
-      starting: "STARTING",
-      completed: "STARTED",
-    });
-    await reportProgress({
-      subject: "Worker",
-      action: this.startWorker,
-      starting: "STARTING",
-      completed: "STARTED",
-    });
+    await this.startServer();
+    await this.startWorker();
     assert(options.serial, "Expected serial mode");
+
+    await reportProgress({
+      action: this.waitForClient,
+      starting: "LISTENING",
+      startingText: `Waiting for a client to connect to ${this.serverUrl}`,
+      completed: "CONNECTED",
+      completedText: () => {
+        return `Connected to client`;
+      },
+    });
+
     /*
     this.send({
       action: "runTests",
@@ -87,18 +88,8 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       // TODO: Exchange for actually sending the intent
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
-    await reportProgress({
-      subject: "Worker",
-      action: this.stopWorker,
-      starting: "STOPPING",
-      completed: "STOPPED",
-    });
-    await reportProgress({
-      subject: "Server",
-      action: this.stopServer,
-      starting: "STOPPING",
-      completed: "STOPPED",
-    });
+    await this.stopWorker();
+    await this.stopServer();
   }
 
   on<Name extends keyof TestEvents>(
@@ -119,7 +110,7 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     }
   }
 
-  private startWorker = async () => {
+  private async startWorker() {
     this.#worker = cp.spawn(config.command, {
       shell: true,
       stdio: [process.stdin, "pipe", "pipe"],
@@ -145,9 +136,9 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     });
     // Stop listening for the "error" event
     this.#worker.removeAllListeners("error");
-  };
+  }
 
-  private stopWorker = async () => {
+  private async stopWorker() {
     // Wait for the process to exit
     await new Promise<void>((resolve) => {
       if (this.#worker) {
@@ -156,18 +147,49 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
         this.#worker = null;
       }
     });
-  };
+  }
 
-  private startServer = () => {
-    this.#server = new ws.Server({ port: config.port });
-  };
+  private async startServer() {
+    await new Promise<void>((resolve) => {
+      this.#server = new ws.Server(
+        { port: config.port, clientTracking: true },
+        resolve
+      );
+    });
+  }
 
-  private stopServer = () => {
+  private async stopServer() {
+    await new Promise<void>((resolve, reject) => {
+      if (this.#server) {
+        this.#server.close((err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+        this.#server = null;
+      }
+    });
+  }
+
+  private get server(): ws.Server {
     if (this.#server) {
-      this.#server.close();
-      this.#server = null;
+      return this.#server;
+    } else {
+      throw new Error("Expected a running server");
     }
-  };
+  }
+
+  private get serverUrl(): string {
+    const address = this.server.address();
+    if (typeof address === "string") {
+      return address;
+    } else {
+      const { family, address: host, port } = address;
+      return `ws://${family === "IPv6" ? `[${host}]` : host}:${port}`;
+    }
+  }
 
   private handleWorkerExit = (
     code: number | null,
@@ -184,5 +206,19 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       this.#worker.kill();
       this.#worker = null;
     }
+  };
+
+  private waitForClient = async () => {
+    return new Promise<void>((resolve) => {
+      if (this.#server) {
+        if (this.#server.clients.size > 0) {
+          resolve();
+        } else {
+          this.#server.once("connection", resolve);
+        }
+      } else {
+        throw new Error("Expected a running server");
+      }
+    });
   };
 }

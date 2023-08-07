@@ -16,30 +16,39 @@ const failedBadge = (text: string) => badge(chalk.reset.inverse.bold.red, text);
 
 type ProgressTexts<R> = {
   starting?: string;
+  startingText: string | (() => string);
   completed?: string;
+  completedText: string | (() => string);
   failed?: string;
-  subject: string;
   action: () => R;
 };
 
+function unwrap(value: string | (() => string)): string {
+  return typeof value === "function" ? value() : value;
+}
+
 export async function reportProgress<R>({
-  subject,
   action,
   starting = "STARTING",
+  startingText,
   completed = "COMPLETED",
+  completedText,
   failed = "FAILED",
 }: ProgressTexts<R>) {
-  process.stdout.write(progressBadge(starting) + " " + subject);
+  process.stdout.write(progressBadge(starting) + ` ${unwrap(startingText)}`);
   try {
     const result = await action();
     readline.clearLine(process.stdout, 0);
     readline.cursorTo(process.stdout, 0);
-    process.stdout.write(completedBadge(completed) + " " + subject + "\n");
+    process.stdout.write(
+      completedBadge(completed) + ` ${unwrap(completedText)}\n`
+    );
     return result;
   } catch (err) {
     readline.clearLine(process.stdout, 0);
     readline.cursorTo(process.stdout, 0);
-    process.stderr.write(failedBadge(failed) + " " + subject + "\n");
+    const message = err instanceof Error ? err.message : `${err}`;
+    process.stderr.write(failedBadge(failed) + ` ${message}`);
     throw err;
   }
 }

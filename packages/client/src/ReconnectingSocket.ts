@@ -1,9 +1,11 @@
 import WebSocket from "isomorphic-ws";
+import { ClientEventEmitter } from "./ClientEventEmitter";
 
 export class ReconnectingSocket {
   #socket: WebSocket | null = null;
 
   constructor(
+    private eventEmitter: ClientEventEmitter,
     private address: string,
     private reconnect: boolean,
     private delay: number
@@ -12,6 +14,7 @@ export class ReconnectingSocket {
   async connect(): Promise<void> {
     await new Promise((resolve, reject) => {
       this.#socket = new WebSocket(this.address);
+      this.#socket.on("open", this.handleOpen);
       this.#socket.once("open", resolve);
       this.#socket.once("error", (err) => {
         if (!this.reconnect) {
@@ -24,6 +27,10 @@ export class ReconnectingSocket {
       });
     });
   }
+
+  private handleOpen = (ws: WebSocket) => {
+    this.eventEmitter.emit("connected", ws);
+  };
 
   private async handleClose(code: number, reason: unknown) {
     // Forget about the socket

@@ -4,11 +4,11 @@ import { JestRemoteClient } from "./node/index.js";
 
 export async function run() {
   const client = new JestRemoteClient();
-  await client.connect();
-  client.on("connection", () => {
+  client.on("connected", () => {
     console.log("🔌  Connected");
   });
-  client.on("disconnection", () => {
+  client.on("disconnected", () => {
     console.log("😞  Disconnected");
   });
+  await client.connect();
 }

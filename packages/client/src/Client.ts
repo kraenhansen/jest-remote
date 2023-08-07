@@ -23,6 +23,7 @@ export class Client extends ClientEventEmitter {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.#socket = new ReconnectingSocket(
+      this,
       this.config.address,
       this.config.reconnect,
       this.config.reconnectDelay
@@ -34,6 +35,5 @@ export class Client extends ClientEventEmitter {
 
   async connect(): Promise<void> {
     await this.#socket.connect();
-    console.log("Connected!");
   }
 }

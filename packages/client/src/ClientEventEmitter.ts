@@ -1,9 +1,10 @@
+import type WebSocket from "isomorphic-ws";
 import type TypedEmitter from "typed-emitter";
 import type EventEmitter from "events";
 
 export enum EventName {
-  Connected = "connection",
-  Disconnection = "disconnection",
+  Connected = "connected",
+  Disconnection = "disconnected",
   /*
   Error = "error",
   RunStart = "run-start",
@@ -13,15 +14,15 @@ export enum EventName {
   TestCaseResult = "test-case-result",
   */
 }
-export declare type ConnectionListener = (ws: WebSocket) => void;
-export declare type DisconnectionListener = (
+export declare type ConnectedListener = (ws: WebSocket) => void;
+export declare type DisconnectedListener = (
   code?: number,
   reason?: string
 ) => void;
 
 export declare type Events = {
-  connection: ConnectionListener;
-  disconnection: DisconnectionListener;
+  connected: ConnectedListener;
+  disconnected: DisconnectedListener;
 };
 
 export class ClientEventEmitter implements TypedEmitter<Events> {
