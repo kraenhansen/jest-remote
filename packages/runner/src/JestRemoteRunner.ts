@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import * as cp from "node:child_process";
 import { Readable } from "node:stream";
 import * as ws from "ws";
+import chalk from "chalk";
 
 import * as Jest from "@jest/types";
 import {
@@ -52,6 +53,12 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     await this.startServer();
     await this.startWorker();
     assert(options.serial, "Expected serial mode");
+    /*
+    this.send({
+      action: "runTests",
+      tests: tests.map(({ path }) => ({ path })),
+    });
+    */
     // TODO: Propagate any events coming back from the server via the "emit"
     for (const test of tests) {
       // TODO: Send the intent to the client
@@ -99,11 +106,13 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       stdio: [process.stdin, "pipe", "pipe"],
     });
 
+    const styledPrefix = chalk.dim(`[${config.prefix}]`) + " ";
+
     this.#worker.stdout
-      .pipe(new PrefixingTransform(config.prefix))
+      .pipe(new PrefixingTransform(styledPrefix))
       .pipe(process.stdout);
     this.#worker.stderr
-      .pipe(new PrefixingTransform(config.prefix))
+      .pipe(new PrefixingTransform(styledPrefix))
       .pipe(process.stderr);
 
     this.#worker.once("exit", this.handleWorkerExit);

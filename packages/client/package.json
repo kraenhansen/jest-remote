@@ -7,7 +7,11 @@
   },
   "type": "module",
   "types": "./dist/index.d.ts",
-  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "node": "./dist/node/index.js"
+    }
+  },
   "scripts": {
     "start": "wireit",
     "build": "tsc",
@@ -27,6 +31,7 @@
   "author": "Kræn Hansen <mail@kraenhansen.dk>",
   "license": "ISC",
   "dependencies": {
+    "events": "^3.3.0",
     "isomorphic-ws": "^5.0.0",
     "typed-emitter": "^2.1.0",
     "ws": "^8.13.0"

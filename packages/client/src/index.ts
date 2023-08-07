@@ -1,1 +1,1 @@
-export { Client as JestRemoteClient } from "./Client";
+export { Client as JestRemoteClient } from "./Client.js";

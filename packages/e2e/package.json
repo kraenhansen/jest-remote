@@ -19,6 +19,6 @@
     "jest-remote-client": "*"
   },
   "jest-runner-remote": {
-    "command": "npx jest-runner-remote-client; echo 'hi!'"
+    "command": "npx jest-runner-remote-client"
   }
 }

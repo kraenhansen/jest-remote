@@ -1,4 +1,5 @@
 import type TypedEmitter from "typed-emitter";
+import type EventEmitter from "events";
 
 export enum EventName {
   Connected = "connection",
@@ -23,91 +24,93 @@ export declare type Events = {
   disconnection: DisconnectionListener;
 };
 
-type ListenerCallback<E extends keyof Events> = (
-  ...args: Parameters<Events[E]>
-) => void;
-
-const remover = Symbol("remover");
-
 export class ClientEventEmitter implements TypedEmitter<Events> {
-  #listeners = {
-    [EventName.Connected]: new Set<ConnectionListener>(),
-    [EventName.Disconnection]: new Set<DisconnectionListener>(),
-  };
+  /** @internal */
+  static EventEmitter: typeof EventEmitter;
 
-  emit<E extends keyof Events>(
+  #emitter = new ClientEventEmitter.EventEmitter();
+
+  public addListener<E extends keyof Events>(
     event: E,
-    ...args: Parameters<ListenerCallback<E>>
+    listener: Events[E]
+  ): this {
+    this.#emitter.addListener.call(this.#emitter, event, listener);
+    return this;
+  }
+
+  public removeListener<E extends keyof Events>(
+    event: E,
+    listener: Events[E]
+  ): this {
+    this.#emitter.removeListener.call(this.#emitter, event, listener);
+    return this;
+  }
+
+  public removeAllListeners<E extends keyof Events>(event?: E): this {
+    this.#emitter.removeAllListeners.call(this.#emitter, event);
+    return this;
+  }
+
+  public on<E extends keyof Events>(event: E, listener: Events[E]): this {
+    this.#emitter.on.call(this.#emitter, event, listener);
+    return this;
+  }
+
+  public once<E extends keyof Events>(event: E, listener: Events[E]): this {
+    this.#emitter.addListener.call(this.#emitter, event, listener);
+    return this;
+  }
+
+  public off<E extends keyof Events>(event: E, listener: Events[E]): this {
+    this.#emitter.addListener.call(this.#emitter, event, listener);
+    return this;
+  }
+
+  public emit<E extends keyof Events>(
+    event: E,
+    ...args: Parameters<Events[E]>
   ): boolean {
-    const listeners = this.#listeners[event] as Set<ListenerCallback<E>>;
-    for (const listener of listeners) {
-      listener.call(null, ...args);
-    }
-    return true;
+    return this.#emitter.emit.call(this.#emitter, event, ...args);
   }
 
-  eventNames(): (string | symbol)[] {
-    return Object.keys(EventName);
-  }
-
-  addListener<E extends keyof Events>(event: E, listener: Events[E]): this {
-    const listeners = this.#listeners[event] as Set<Events[E]>;
-    listeners.add(listener);
+  public setMaxListeners(n: number): this {
+    this.#emitter.setMaxListeners.call(this.#emitter, n);
     return this;
   }
 
-  once<E extends keyof Events>(event: E, listener: Events[E]): this {
-    const remover = () => {};
-    return this.addListener(event, listener);
+  public getMaxListeners(): number {
+    return this.#emitter.getMaxListeners.call(this.#emitter);
   }
 
-  removeAllListeners<E extends keyof Events>(event?: E | undefined): this {
-    if (event) {
-      const listeners = this.#listeners[event] as Set<Events[E]>;
-      listeners.clear();
-    } else {
-      for (const listeners of Object.values(this.#listeners)) {
-        listeners.clear();
-      }
-    }
+  public listenerCount<E extends keyof Events>(event: E): number {
+    return this.#emitter.listenerCount.call(this.#emitter, event);
+  }
+
+  public prependListener<E extends keyof Events>(
+    event: E,
+    listener: Events[E]
+  ): this {
+    this.#emitter.prependListener.call(this.#emitter, event, listener);
     return this;
   }
 
-  removeListener<E extends keyof Events>(event: E, listener: Events[E]): this {
-    const listeners = this.#listeners[event] as Set<Events[E]>;
-    listeners.delete(listener);
+  public prependOnceListener<E extends keyof Events>(
+    event: E,
+    listener: Events[E]
+  ): this {
+    this.#emitter.prependOnceListener.call(this.#emitter, event, listener);
     return this;
   }
 
-  on<E extends keyof Events>(event: E, listener: Events[E]): this {
-    return this.addListener(event, listener);
+  public eventNames(): (keyof Events)[] {
+    return Object.values(EventName);
   }
 
-  off<E extends keyof Events>(event: E, listener: Events[E]): this {
-    return this.removeListener(event, listener);
+  rawListeners<E extends keyof Events>(event: E): Events[E][] {
+    return this.#emitter.rawListeners.call(this.#emitter, event) as Events[E][];
   }
 
-  // Keeping things simple
-
-  prependListener(): never {
-    throw new Error("Method not implemented.");
-  }
-  prependOnceListener(): never {
-    throw new Error("Method not implemented.");
-  }
-  rawListeners(): never {
-    throw new Error("Method not implemented.");
-  }
-  listeners(): never {
-    throw new Error("Method not implemented.");
-  }
-  listenerCount(): never {
-    throw new Error("Method not implemented.");
-  }
-  getMaxListeners(): never {
-    throw new Error("Method not implemented.");
-  }
-  setMaxListeners(): never {
-    throw new Error("Method not implemented.");
+  listeners<E extends keyof Events>(event: E): Events[E][] {
+    return this.#emitter.listeners.call(this.#emitter, event) as Events[E][];
   }
 }

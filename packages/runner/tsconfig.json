@@ -3,6 +3,7 @@
     "incremental": true,
     "sourceMap": true,
     "strict": true,
+    "allowSyntheticDefaultImports": true,
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "node",
