@@ -5,25 +5,29 @@ import type EventEmitter from "events";
 export enum EventName {
   Connected = "connected",
   Disconnection = "disconnected",
+  RunTests = "run-tests",
+  RunTestsCompleted = "run-tests-completed",
   /*
   Error = "error",
-  RunStart = "run-start",
   TestFileStart = "test-file-start",
   TestFileFailure = "test-file-failure",
   TestFileSuccess = "test-file-success",
   TestCaseResult = "test-case-result",
   */
 }
-export declare type ConnectedListener = (ws: WebSocket) => void;
-export declare type DisconnectedListener = (
-  code?: number,
-  reason?: string
-) => void;
+export type ConnectedListener = (ws: WebSocket) => void;
+export type DisconnectedListener = (code?: number, reason?: string) => void;
+export type RunTestsListener = (tests: Test[]) => void;
+export type RunTestsCompletedListener = () => void;
 
 export declare type Events = {
   connected: ConnectedListener;
   disconnected: DisconnectedListener;
+  "run-tests": RunTestsListener;
+  "run-tests-completed": RunTestsCompletedListener;
 };
+
+export type Test = { path: string };
 
 export class ClientEventEmitter implements TypedEmitter<Events> {
   /** @internal */

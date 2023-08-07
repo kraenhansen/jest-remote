@@ -58,36 +58,19 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     await reportProgress({
       action: this.waitForClient,
       starting: "LISTENING",
-      startingText: `Waiting for a client to connect to ${this.serverUrl}`,
+      startingText: `Waiting for a worker to connect to ${this.serverUrl}`,
       completed: "CONNECTED",
       completedText: () => {
-        return `Connected to client`;
+        return `Connected to worker`;
       },
     });
 
-    /*
-    this.send({
-      action: "runTests",
-      tests: tests.map(({ path }) => ({ path })),
-    });
-    */
-    // TODO: Propagate any events coming back from the server via the "emit"
-    for (const test of tests) {
-      const start = new Date();
-      const end = new Date();
+    await Promise.all(
+      [...this.server.clients].map((client) =>
+        this.runTestsWithClient(client, tests)
+      )
+    );
 
-      this.emit("test-file-start", test);
-      // this.emit("test-file-success", test, pass({ start, end, test }));
-      /*
-      const err = new Error("Unexpected");
-      this.emit("test-file-failure", test, {
-        message: err.message,
-        stack: err.stack,
-      });
-      */
-      // TODO: Exchange for actually sending the intent
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
     await this.stopWorker();
     await this.stopServer();
   }
@@ -99,6 +82,38 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     const set = this.#listeners[eventName];
     set.add(listener);
     return () => set.delete(listener);
+  }
+
+  private async runTestsWithClient(client: ws.WebSocket, tests: Test[]) {
+    client.send(
+      JSON.stringify({
+        type: "run-tests",
+        tests: tests.map(({ path }) => ({ path })),
+      })
+    );
+    // Wait for the client to respond with the "run-tests-completed" message
+    await this.waitForMessage(client, "run-tests-completed");
+  }
+
+  private async waitForMessage(client: ws.WebSocket, type: string) {
+    return new Promise((resolve, reject) => {
+      client.on("message", (data) => {
+        const message = JSON.parse(data.toString());
+        if (message.type === type) {
+          resolve(message);
+        }
+      });
+      client.once("close", () => {
+        const err = new Error(`Socket closed while waiting for '${type}'`);
+        reject(err);
+      });
+      client.once("error", (cause) => {
+        const err = new Error(`Socket errored while waiting for '${type}'`, {
+          cause,
+        });
+        reject(err);
+      });
+    });
   }
 
   private emit<Name extends keyof TestEvents>(
@@ -116,7 +131,7 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       stdio: [process.stdin, "pipe", "pipe"],
     });
 
-    const styledPrefix = chalk.dim(`[${config.prefix}]`) + " ";
+    const styledPrefix = chalk.dim(`[${config.logPrefix}]`) + " ";
 
     this.#worker.stdout
       .pipe(new PrefixingTransform(styledPrefix))
