@@ -16,6 +16,7 @@ import {
 
 import { config } from "./config";
 import { PrefixingTransform } from "./PrefixingTransform";
+import { reportProgress } from "./ui";
 
 type EventListener<Name extends keyof TestEvents> = (
   eventData: TestEvents[Name]
@@ -50,8 +51,18 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     watcher: TestWatcher,
     options: TestRunnerOptions
   ): Promise<void> {
-    await this.startServer();
-    await this.startWorker();
+    await reportProgress({
+      subject: "Server",
+      action: ,
+      starting: "STARTING",
+      completed: "STARTED",
+    });
+    await reportProgress({
+      subject: "Worker",
+      action: this.startWorker,
+      starting: "STARTING",
+      completed: "STARTED",
+    });
     assert(options.serial, "Expected serial mode");
     /*
     this.send({
@@ -61,8 +72,6 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     */
     // TODO: Propagate any events coming back from the server via the "emit"
     for (const test of tests) {
-      // TODO: Send the intent to the client
-      console.log({ test });
       const start = new Date();
       const end = new Date();
 
@@ -78,8 +87,18 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       // TODO: Exchange for actually sending the intent
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
-    await this.stopWorker();
-    await this.stopServer();
+    await reportProgress({
+      subject: "Worker",
+      action: this.stopWorker,
+      starting: "STOPPING",
+      completed: "STOPPED",
+    });
+    await reportProgress({
+      subject: "Server",
+      action: this.stopServer,
+      starting: "STOPPING",
+      completed: "STOPPED",
+    });
   }
 
   on<Name extends keyof TestEvents>(
@@ -100,7 +119,7 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     }
   }
 
-  private async startWorker(): Promise<void> {
+  private startWorker = async () => {
     this.#worker = cp.spawn(config.command, {
       shell: true,
       stdio: [process.stdin, "pipe", "pipe"],
@@ -126,35 +145,38 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     });
     // Stop listening for the "error" event
     this.#worker.removeAllListeners("error");
-  }
+  };
 
-  private async stopWorker(): Promise<void> {
+  private stopWorker = async () => {
     // Wait for the process to exit
     await new Promise<void>((resolve) => {
       if (this.#worker) {
         this.#worker.kill("SIGKILL");
-        this.#worker.once("close", resolve);
+        this.#worker.once("exit", resolve);
         this.#worker = null;
       }
     });
-  }
+  };
 
-  private async startServer(): Promise<void> {
+  private startServer = () => {
     this.#server = new ws.Server({ port: config.port });
-  }
+  };
 
-  private async stopServer(): Promise<void> {
+  private stopServer = () => {
     if (this.#server) {
       this.#server.close();
       this.#server = null;
     }
-  }
+  };
 
   private handleWorkerExit = (
     code: number | null,
     signal: NodeJS.Signals | null
   ) => {
-    console.log("Worker exited!", { code, signal });
+    // TODO: Make sure this doesn't collide with the report of progress
+    process.stdout.write(
+      chalk.dim(`Worker exited (code = ${code}, signal = ${signal})\n`)
+    );
   };
 
   private killWorker = () => {

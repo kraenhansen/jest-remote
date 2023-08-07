@@ -10,7 +10,7 @@ export const DEFAULT: Config = {
     ? JEST_REMOTE_COMMAND
     : "echo 'Missing command for Jest Remote'; exit 1",
   port: JEST_REMOTE_PORT ? parseInt(JEST_REMOTE_PORT, 10) : 8090,
-  prefix: JEST_REMOTE_PREFIX ? JEST_REMOTE_PREFIX : "remote",
+  prefix: JEST_REMOTE_PREFIX ? JEST_REMOTE_PREFIX : "runner",
 };
 
 const configResult = cosmiconfigSync("jest-runner-remote").search();

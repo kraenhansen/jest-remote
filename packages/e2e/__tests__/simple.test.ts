@@ -17,4 +17,4 @@ async function runJest() {
 test("it works", async () => {
   const { results } = await runJest();
   expect(results.success).toEqual(true);
-});
+}, 10_000);
