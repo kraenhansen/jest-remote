@@ -1,4 +1,7 @@
 import WebSocket from "isomorphic-ws";
+
+import { ServerActions, ServerActionName } from "jest-runner-remote-protocol";
+
 import { ClientEventEmitter } from "./ClientEventEmitter";
 
 export class ReconnectingSocket {
@@ -30,12 +33,21 @@ export class ReconnectingSocket {
     });
   }
 
-  send(message: string | Record<string, unknown>) {
-    if (typeof message === "string") {
+  async send<ActionName extends ServerActionName>(
+    action: ActionName,
+    ...args: Parameters<ServerActions[ActionName]>
+  ): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
       if (this.#socket) {
         const { readyState } = this.#socket;
         if (readyState === WebSocket.OPEN) {
-          this.#socket.send(message);
+          this.#socket.send(JSON.stringify({ action, args }), (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
         } else {
           throw new Error(
             `Expected an open socket (ready state = ${readyState})`
@@ -44,9 +56,7 @@ export class ReconnectingSocket {
       } else {
         throw new Error("Expected a open socket");
       }
-    } else {
-      this.send(JSON.stringify(message));
-    }
+    });
   }
 
   disconnect(code = 1000, reason?: string) {

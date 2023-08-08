@@ -14,6 +14,12 @@ import {
   UnsubscribeFn,
 } from "jest-runner";
 
+import {
+  ClientActionName,
+  ClientActions,
+  ServerActionName,
+} from "jest-runner-remote-protocol";
+
 import { config } from "./config";
 import { PrefixingTransform } from "./PrefixingTransform";
 import { reportProgress } from "./ui";
@@ -25,6 +31,14 @@ type EventListener<Name extends keyof TestEvents> = (
 type EventListeners = {
   [Name in keyof TestEvents]: Set<EventListener<Name>>;
 };
+
+function send<ActionName extends ClientActionName>(
+  socket: ws.WebSocket,
+  action: ActionName,
+  ...args: Parameters<ClientActions[ActionName]>
+): void {
+  socket.send(JSON.stringify({ action, args }));
+}
 
 export class JestRemoteRunner implements EmittingTestRunnerInterface {
   readonly supportsEventEmitters = true;
@@ -85,30 +99,25 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
   }
 
   private async runTestsWithClient(client: ws.WebSocket, tests: Test[]) {
-    client.send(
-      JSON.stringify({
-        type: "run-tests",
-        tests: tests.map(({ path }) => ({ path })),
-      })
-    );
+    send(client, "run-tests", tests);
     // Wait for the client to respond with the "run-tests-completed" message
     await this.waitForMessage(client, "run-tests-completed");
   }
 
-  private async waitForMessage(client: ws.WebSocket, type: string) {
+  private async waitForMessage(client: ws.WebSocket, action: ServerActionName) {
     return new Promise((resolve, reject) => {
       client.on("message", (data) => {
         const message = JSON.parse(data.toString());
-        if (message.type === type) {
+        if (message.action === action) {
           resolve(message);
         }
       });
       client.once("close", () => {
-        const err = new Error(`Socket closed while waiting for '${type}'`);
+        const err = new Error(`Socket closed while waiting for '${action}'`);
         reject(err);
       });
       client.once("error", (cause) => {
-        const err = new Error(`Socket errored while waiting for '${type}'`, {
+        const err = new Error(`Socket errored while waiting for '${action}'`, {
           cause,
         });
         reject(err);

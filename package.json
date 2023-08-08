@@ -23,6 +23,7 @@
     "./runner": "./runner.js"
   },
   "workspaces": [
+    "packages/protocol",
     "packages/client",
     "packages/runner",
     "packages/e2e"
