@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import * as cp from "node:child_process";
 import { Readable } from "node:stream";
-import * as ws from "ws";
 import chalk from "chalk";
+import { WebSocket } from "ws";
 
 import * as Jest from "@jest/types";
 import {
@@ -14,15 +14,10 @@ import {
   UnsubscribeFn,
 } from "jest-runner";
 
-import {
-  ClientActionName,
-  ClientActions,
-  ServerActionName,
-} from "jest-runner-remote-protocol";
-
 import { config } from "./config";
 import { PrefixingTransform } from "./PrefixingTransform";
 import { reportProgress } from "./ui";
+import { Server } from "./Server";
 
 type EventListener<Name extends keyof TestEvents> = (
   eventData: TestEvents[Name]
@@ -31,14 +26,6 @@ type EventListener<Name extends keyof TestEvents> = (
 type EventListeners = {
   [Name in keyof TestEvents]: Set<EventListener<Name>>;
 };
-
-function send<ActionName extends ClientActionName>(
-  socket: ws.WebSocket,
-  action: ActionName,
-  ...args: Parameters<ClientActions[ActionName]>
-): void {
-  socket.send(JSON.stringify({ action, args }));
-}
 
 export class JestRemoteRunner implements EmittingTestRunnerInterface {
   readonly supportsEventEmitters = true;
@@ -52,27 +39,33 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     "test-case-result": new Set(),
   };
 
-  #server: ws.Server | null = null;
+  #server: Server = new Server({
+    port: config.port,
+    actions: {
+      "run-tests-completed": () => {
+        // No-op
+      },
+      // "test-file-start": (...args) => {},
+    },
+  });
   #worker: cp.ChildProcessByStdio<null, Readable, Readable> | null = null;
   // #worker: cp.ChildProcess | null = null;
 
-  constructor(private globalConfig: Jest.Config.GlobalConfig) {
-    // console.log({ globalConfig });
-  }
+  constructor(private globalConfig: Jest.Config.GlobalConfig) {}
 
   async runTests(
     tests: Array<Test>,
     watcher: TestWatcher,
     options: TestRunnerOptions
   ): Promise<void> {
-    await this.startServer();
+    await this.#server.start();
     await this.startWorker();
     assert(options.serial, "Expected serial mode");
 
     await reportProgress({
-      action: this.waitForClient,
+      action: () => this.#server.waitForClient(),
       starting: "LISTENING",
-      startingText: `Waiting for a worker to connect to ${this.serverUrl}`,
+      startingText: `Waiting for a worker to connect to ${this.#server.url}`,
       completed: "CONNECTED",
       completedText: () => {
         return `Connected to worker`;
@@ -80,13 +73,13 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     });
 
     await Promise.all(
-      [...this.server.clients].map((client) =>
+      [...this.#server.clients].map((client) =>
         this.runTestsWithClient(client, tests)
       )
     );
 
     await this.stopWorker();
-    await this.stopServer();
+    await this.#server.stop();
   }
 
   on<Name extends keyof TestEvents>(
@@ -98,31 +91,10 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     return () => set.delete(listener);
   }
 
-  private async runTestsWithClient(client: ws.WebSocket, tests: Test[]) {
-    send(client, "run-tests", tests);
+  private async runTestsWithClient(client: WebSocket, tests: Test[]) {
+    this.#server.send(client, "run-tests", tests);
     // Wait for the client to respond with the "run-tests-completed" message
-    await this.waitForMessage(client, "run-tests-completed");
-  }
-
-  private async waitForMessage(client: ws.WebSocket, action: ServerActionName) {
-    return new Promise((resolve, reject) => {
-      client.on("message", (data) => {
-        const message = JSON.parse(data.toString());
-        if (message.action === action) {
-          resolve(message);
-        }
-      });
-      client.once("close", () => {
-        const err = new Error(`Socket closed while waiting for '${action}'`);
-        reject(err);
-      });
-      client.once("error", (cause) => {
-        const err = new Error(`Socket errored while waiting for '${action}'`, {
-          cause,
-        });
-        reject(err);
-      });
-    });
+    await this.#server.waitForMessage(client, "run-tests-completed");
   }
 
   private emit<Name extends keyof TestEvents>(
@@ -173,48 +145,6 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     });
   }
 
-  private async startServer() {
-    await new Promise<void>((resolve) => {
-      this.#server = new ws.Server(
-        { port: config.port, clientTracking: true },
-        resolve
-      );
-    });
-  }
-
-  private async stopServer() {
-    await new Promise<void>((resolve, reject) => {
-      if (this.#server) {
-        this.#server.close((err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
-        this.#server = null;
-      }
-    });
-  }
-
-  private get server(): ws.Server {
-    if (this.#server) {
-      return this.#server;
-    } else {
-      throw new Error("Expected a running server");
-    }
-  }
-
-  private get serverUrl(): string {
-    const address = this.server.address();
-    if (typeof address === "string") {
-      return address;
-    } else {
-      const { family, address: host, port } = address;
-      return `ws://${family === "IPv6" ? `[${host}]` : host}:${port}`;
-    }
-  }
-
   private handleWorkerExit = (
     code: number | null,
     signal: NodeJS.Signals | null
@@ -230,19 +160,5 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       this.#worker.kill();
       this.#worker = null;
     }
-  };
-
-  private waitForClient = async () => {
-    return new Promise<void>((resolve) => {
-      if (this.#server) {
-        if (this.#server.clients.size > 0) {
-          resolve();
-        } else {
-          this.#server.once("connection", resolve);
-        }
-      } else {
-        throw new Error("Expected a running server");
-      }
-    });
   };
 }
