@@ -1,4 +1,6 @@
-import { WebSocketServer, WebSocket } from "ws";
+import { strict as assert } from "assert";
+
+import { WebSocketServer, WebSocket, RawData } from "ws";
 
 import {
   ClientActionName,
@@ -12,8 +14,6 @@ export type ServerConfig = {
   actions: ServerActions;
 };
 
-// TODO: Register listener for messages and call into config.actions
-
 export class Server {
   #server: WebSocketServer | null = null;
 
@@ -25,6 +25,7 @@ export class Server {
         { port: this.config.port, clientTracking: true },
         resolve
       );
+      this.#server.on("connection", this.handleConnection);
     });
   }
 
@@ -113,6 +114,31 @@ export class Server {
       return this.#server;
     } else {
       throw new Error("Expected a running server");
+    }
+  }
+
+  private handleConnection = (client: WebSocket) => {
+    client.on("message", this.handleMessage);
+  };
+
+  private handleMessage = (data: RawData) => {
+    const { action, args } = JSON.parse(data.toString("utf8"));
+    assert(action in this.config.actions);
+    this.callAction(action, ...args);
+  };
+
+  private callAction<
+    ActionName extends keyof ServerActions,
+    ActionParameters extends Parameters<ServerActions[ActionName]>
+  >(actionName: ActionName, ...args: ActionParameters): void {
+    if (actionName in this.config.actions) {
+      const action = this.config.actions[actionName] as (
+        this: void,
+        ...args: ActionParameters
+      ) => void;
+      action(...args);
+    } else {
+      throw new Error(`Unexpected action: ${actionName}`);
     }
   }
 }

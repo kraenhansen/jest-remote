@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "description": "Run Jest tests anywhere - get reporting in your terminal",
   "bin": {
-    "jest-runner-remote-client": "./cli.js"
+    "jest-runner-remote-client": "./cli.mjs"
   },
-  "type": "module",
+  "type": "commonjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {

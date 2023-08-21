@@ -2,6 +2,7 @@ import type WebSocket from "isomorphic-ws";
 
 import { ClientActions } from "jest-runner-remote-protocol";
 import TestRunner from "jest-runner";
+import { TestWatcher } from "jest-watcher";
 
 import { ClientEventEmitter } from "./ClientEventEmitter.js";
 import { ReconnectingSocket } from "./ReconnectingSocket.js";
@@ -24,23 +25,38 @@ export class Client extends ClientEventEmitter {
   #config: Config;
   #socket: ReconnectingSocket;
   #runner: TestRunner | null = null;
+  #watcher: TestWatcher | null = null;
 
   #actions: ClientActions = {
     initialize: (globalConfig, testRunnerContext) => {
-      console.log({ TestRunner });
       this.#runner = new TestRunner(globalConfig, testRunnerContext);
+      this.#watcher = new TestWatcher({ isWatchMode: globalConfig.watch });
     },
-    "run-tests": (tests) => {
-      console.log("Running tests!", JSON.stringify(tests, null, 2));
+    "run-tests": async (tests) => {
       this.emit("run-tests", tests);
-      // TODO: Construct a Jest Runner
-      // TODO: Add listeners to the runner and propagate to the server via actions
-      // TODO: Don't fake a completion
-      setTimeout(() => {
-        // TODO: Make sure the message gets sent ...
+      const unsubscribables = [
+        this.runner.on("test-file-start", (args) =>
+          this.#socket.send("test-file-start", ...args)
+        ),
+        this.runner.on("test-file-failure", (args) =>
+          this.#socket.send("test-file-failure", ...args)
+        ),
+        this.runner.on("test-file-success", (args) =>
+          this.#socket.send("test-file-success", ...args)
+        ),
+        this.runner.on("test-case-result", (args) =>
+          this.#socket.send("test-case-result", ...args)
+        ),
+      ];
+      try {
+        await this.runner.runTests(tests, this.watcher, { serial: true });
+      } finally {
+        for (const unsubscribe of unsubscribables) {
+          unsubscribe();
+        }
         this.#socket.send("run-tests-completed");
         this.emit("run-tests-completed");
-      }, 1000);
+      }
     },
   };
 
@@ -61,6 +77,22 @@ export class Client extends ClientEventEmitter {
     // Connect if we have to
     if (this.#config.autoConnect) {
       this.connect().catch(console.error);
+    }
+  }
+
+  get runner() {
+    if (this.#runner) {
+      return this.#runner;
+    } else {
+      throw new Error("Cannot get runner before it's been initialized");
+    }
+  }
+
+  get watcher() {
+    if (this.#watcher) {
+      return this.#watcher;
+    } else {
+      throw new Error("Cannot get watcher before it's been initialized");
     }
   }
 
