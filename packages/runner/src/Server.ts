@@ -12,6 +12,8 @@ export type ServerConfig = {
   actions: ServerActions;
 };
 
+// TODO: Register listener for messages and call into config.actions
+
 export class Server {
   #server: WebSocketServer | null = null;
 
@@ -55,7 +57,7 @@ export class Server {
     });
   }
 
-  async waitForMessage(client: WebSocket, action: ServerActionName) {
+  async waitForAction(client: WebSocket, action: ServerActionName) {
     return new Promise((resolve, reject) => {
       client.on("message", (data) => {
         const message = JSON.parse(data.toString());
@@ -76,12 +78,20 @@ export class Server {
     });
   }
 
-  send<ActionName extends ClientActionName>(
+  async send<ActionName extends ClientActionName>(
     socket: WebSocket,
     action: ActionName,
     ...args: Parameters<ClientActions[ActionName]>
-  ): void {
-    socket.send(JSON.stringify({ action, args }));
+  ) {
+    await new Promise<void>((resolve, reject) => {
+      socket.send(JSON.stringify({ action, args }), (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   get url(): string {

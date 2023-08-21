@@ -1,8 +1,10 @@
 import type WebSocket from "isomorphic-ws";
 
+import { ClientActions } from "jest-runner-remote-protocol";
+import TestRunner from "jest-runner";
+
 import { ClientEventEmitter } from "./ClientEventEmitter.js";
 import { ReconnectingSocket } from "./ReconnectingSocket.js";
-import { ClientActionName, ClientActions } from "jest-runner-remote-protocol";
 
 export type Config = {
   address: string;
@@ -21,10 +23,18 @@ const DEFAULT_CONFIG: Config = {
 export class Client extends ClientEventEmitter {
   #config: Config;
   #socket: ReconnectingSocket;
+  #runner: TestRunner | null = null;
+
   #actions: ClientActions = {
+    initialize: (globalConfig, testRunnerContext) => {
+      console.log({ TestRunner });
+      this.#runner = new TestRunner(globalConfig, testRunnerContext);
+    },
     "run-tests": (tests) => {
-      console.log("Running tests!", tests);
+      console.log("Running tests!", JSON.stringify(tests, null, 2));
       this.emit("run-tests", tests);
+      // TODO: Construct a Jest Runner
+      // TODO: Add listeners to the runner and propagate to the server via actions
       // TODO: Don't fake a completion
       setTimeout(() => {
         // TODO: Make sure the message gets sent ...
@@ -58,14 +68,18 @@ export class Client extends ClientEventEmitter {
     await this.#socket.connect();
   }
 
-  private callAction<Action extends keyof ClientActions>(
-    action: Action,
-    ...args: Parameters<ClientActions[Action]>
-  ): void {
-    if (action in this.#actions) {
-      this.#actions[action as ClientActionName].apply(null, args);
+  private callAction<
+    ActionName extends keyof ClientActions,
+    ActionParameters extends Parameters<ClientActions[ActionName]>
+  >(actionName: ActionName, ...args: ActionParameters): void {
+    if (actionName in this.#actions) {
+      const action = this.#actions[actionName] as (
+        this: void,
+        ...args: ActionParameters
+      ) => void;
+      action(...args);
     } else {
-      throw new Error(`Unexpected action: ${action}`);
+      throw new Error(`Unexpected action: ${actionName}`);
     }
   }
 

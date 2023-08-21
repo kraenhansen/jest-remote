@@ -14,13 +14,23 @@
   },
   "scripts": {
     "start": "wireit",
-    "build": "tsc",
+    "build": "wireit",
     "lint": "eslint"
   },
   "wireit": {
     "start": {
       "command": "./cli.js",
       "dependencies": ["build"]
+    },
+    "build": {
+      "command": "tsc",
+      "files": [
+        "./src",
+        "./tsconfig.json"
+      ],
+      "output": [
+        "./dist"
+      ]
     }
   },
   "keywords": [

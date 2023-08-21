@@ -6,11 +6,12 @@ import { WebSocket } from "ws";
 
 import * as Jest from "@jest/types";
 import {
+  EmittingTestRunnerInterface,
   Test,
+  TestEvents,
+  TestRunnerContext,
   TestRunnerOptions,
   TestWatcher,
-  EmittingTestRunnerInterface,
-  TestEvents,
   UnsubscribeFn,
 } from "jest-runner";
 
@@ -45,13 +46,28 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       "run-tests-completed": () => {
         // No-op
       },
-      // "test-file-start": (...args) => {},
+      "test-file-start": (test) => {
+        this.emit("test-file-start", test);
+      },
+      "test-file-failure": (test, error) => {
+        this.emit("test-file-failure", test, error);
+      },
+      "test-file-success": (test, result) => {
+        this.emit("test-file-success", test, result);
+      },
+      "test-case-result": (str, result) => {
+        // TODO: Find a more semantically suitable name for `str`
+        this.emit("test-case-result", str, result);
+      },
     },
   });
   #worker: cp.ChildProcessByStdio<null, Readable, Readable> | null = null;
   // #worker: cp.ChildProcess | null = null;
 
-  constructor(private globalConfig: Jest.Config.GlobalConfig) {}
+  constructor(
+    private globalConfig: Jest.Config.GlobalConfig,
+    private testRunnerContext: TestRunnerContext
+  ) {}
 
   async runTests(
     tests: Array<Test>,
@@ -73,6 +89,10 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     });
 
     await Promise.all(
+      [...this.#server.clients].map((client) => this.initializeClient(client))
+    );
+
+    await Promise.all(
       [...this.#server.clients].map((client) =>
         this.runTestsWithClient(client, tests)
       )
@@ -91,10 +111,19 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
     return () => set.delete(listener);
   }
 
+  private async initializeClient(client: WebSocket) {
+    await this.#server.send(
+      client,
+      "initialize",
+      this.globalConfig,
+      this.testRunnerContext
+    );
+  }
+
   private async runTestsWithClient(client: WebSocket, tests: Test[]) {
-    this.#server.send(client, "run-tests", tests);
+    await this.#server.send(client, "run-tests", tests);
     // Wait for the client to respond with the "run-tests-completed" message
-    await this.#server.waitForMessage(client, "run-tests-completed");
+    await this.#server.waitForAction(client, "run-tests-completed");
   }
 
   private emit<Name extends keyof TestEvents>(

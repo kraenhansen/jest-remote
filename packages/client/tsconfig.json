@@ -8,7 +8,7 @@
     "moduleResolution": "node",
     "declaration": true,
     "outDir": "dist",
-    "allowSyntheticDefaultImports": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "src"

@@ -1,6 +1,6 @@
-import type WebSocket from "isomorphic-ws";
+import type * as WebSocket from "isomorphic-ws";
 import type TypedEmitter from "typed-emitter";
-import type EventEmitter from "events";
+import type * as EventEmitter from "events";
 
 export enum EventName {
   Connected = "connected",
