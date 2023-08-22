@@ -3,11 +3,12 @@ import type WebSocket from "isomorphic-ws";
 import { ClientActions, deserialize } from "jest-runner-remote-protocol";
 import TestRunner from "jest-runner";
 import { TestWatcher } from "jest-watcher";
-import JestResolver, { ResolverOptions } from "jest-resolve";
-import { ModuleMap } from "jest-haste-map";
+import Runtime from "jest-runtime";
+import type { Config as JestConfig } from "@jest/types";
 
 import { ClientEventEmitter } from "./ClientEventEmitter.js";
 import { ReconnectingSocket } from "./ReconnectingSocket.js";
+import { TestContext } from "@jest/test-result";
 
 export type Config = {
   address: string;
@@ -23,14 +24,24 @@ const DEFAULT_CONFIG: Config = {
   reconnectDelay: 1000,
 };
 
+function hydrateContext(
+  config: JestConfig.ProjectConfig,
+  maxWorkers: number,
+  watchman: boolean
+): Promise<TestContext> {
+  return Runtime.createContext(config, { maxWorkers, watchman });
+  throw new Error("Not yet implemented");
+}
 export class Client extends ClientEventEmitter {
   #config: Config;
   #socket: ReconnectingSocket;
+  #globalConfig: JestConfig.GlobalConfig | null = null;
   #runner: TestRunner | null = null;
   #watcher: TestWatcher | null = null;
 
   #actions: ClientActions = {
     initialize: (globalConfig, testRunnerContext) => {
+      this.#globalConfig = globalConfig;
       this.#runner = new TestRunner(globalConfig, testRunnerContext);
       this.#watcher = new TestWatcher({ isWatchMode: globalConfig.watch });
     },
@@ -51,16 +62,16 @@ export class Client extends ClientEventEmitter {
         ),
       ];
       try {
-        console.log(tests);
-        for (const { context } of tests) {
-          // Inflate a proper context
-          // @ts-expect-error - We're accessing a private member of the Resolver
-          const { _moduleMap, _options } = context.resolver;
-          if (typeof _options !== "object" || typeof _moduleMap !== "object") {
-            throw new Error("Expected _options and _moduleMap");
-          }
-          const moduleMap = ModuleMap.create(_options.rootDir);
-          context.resolver = new JestResolver(moduleMap, _options);
+        if (!this.#globalConfig) {
+          throw new Error("Expected globalConfig to be initialized");
+        }
+        const { maxWorkers, watchman } = this.#globalConfig;
+        for (const test of tests) {
+          test.context = await hydrateContext(
+            test.context.config,
+            maxWorkers,
+            watchman
+          );
         }
         await this.runner.runTests(tests, this.watcher, { serial: true });
       } finally {

@@ -8,9 +8,11 @@ async function runJest() {
     {
       runner,
       _: [],
-      $0: "__tests__/__tests__/success.test.ts",
+      $0: "success.test.ts",
+      testPathIgnorePatterns: [],
+      testPathPattern: ["__tests__/__tests__"],
     },
-    ["."]
+    ["__tests__"]
   );
 }
 
