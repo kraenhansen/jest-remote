@@ -4,10 +4,10 @@ import { ClientActions, deserialize } from "jest-runner-remote-protocol";
 import TestRunner from "jest-runner";
 import { TestWatcher } from "jest-watcher";
 import JestResolver, { ResolverOptions } from "jest-resolve";
+import { ModuleMap } from "jest-haste-map";
 
 import { ClientEventEmitter } from "./ClientEventEmitter.js";
 import { ReconnectingSocket } from "./ReconnectingSocket.js";
-import { ModuleMap, SerializableModuleMap } from "./ModuleMap.js";
 
 export type Config = {
   address: string;
@@ -51,14 +51,15 @@ export class Client extends ClientEventEmitter {
         ),
       ];
       try {
-        for (const { context, path } of tests) {
+        console.log(tests);
+        for (const { context } of tests) {
           // Inflate a proper context
           // @ts-expect-error - We're accessing a private member of the Resolver
           const { _moduleMap, _options } = context.resolver;
           if (typeof _options !== "object" || typeof _moduleMap !== "object") {
             throw new Error("Expected _options and _moduleMap");
           }
-          const moduleMap = new ModuleMap(path, _moduleMap);
+          const moduleMap = ModuleMap.create(_options.rootDir);
           context.resolver = new JestResolver(moduleMap, _options);
         }
         await this.runner.runTests(tests, this.watcher, { serial: true });
