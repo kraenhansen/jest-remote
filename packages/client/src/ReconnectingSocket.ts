@@ -1,6 +1,10 @@
 import { WebSocket, Data as WebSocketData } from "isomorphic-ws";
 
-import { ServerActions, ServerActionName } from "jest-runner-remote-protocol";
+import {
+  ServerActions,
+  ServerActionName,
+  serialize,
+} from "jest-runner-remote-protocol";
 
 import { ClientEventEmitter } from "./ClientEventEmitter";
 
@@ -41,8 +45,7 @@ export class ReconnectingSocket {
       if (this.#socket) {
         const { readyState } = this.#socket;
         if (readyState === WebSocket.OPEN) {
-          // TODO: Ensure Errors in args are serialized "correctly"
-          this.#socket.send(JSON.stringify({ action, args }), (err) => {
+          this.#socket.send(serialize({ action, args }), (err) => {
             if (err) {
               reject(err);
             } else {

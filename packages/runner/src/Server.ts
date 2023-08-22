@@ -7,6 +7,8 @@ import {
   ClientActions,
   ServerActionName,
   ServerActions,
+  deserialize,
+  serialize,
 } from "jest-runner-remote-protocol";
 
 export type ServerConfig = {
@@ -61,7 +63,7 @@ export class Server {
   async waitForAction(client: WebSocket, action: ServerActionName) {
     return new Promise((resolve, reject) => {
       client.on("message", (data) => {
-        const message = JSON.parse(data.toString());
+        const message = deserialize(data.toString());
         if (message.action === action) {
           resolve(message);
         }
@@ -85,7 +87,7 @@ export class Server {
     ...args: Parameters<ClientActions[ActionName]>
   ) {
     await new Promise<void>((resolve, reject) => {
-      socket.send(JSON.stringify({ action, args }), (err) => {
+      socket.send(serialize({ action, args }), (err) => {
         if (err) {
           reject(err);
         } else {
@@ -122,7 +124,7 @@ export class Server {
   };
 
   private handleMessage = (data: RawData) => {
-    const { action, args } = JSON.parse(data.toString("utf8"));
+    const { action, args } = deserialize(data.toString("utf8"));
     assert(action in this.config.actions);
     this.callAction(action, ...args);
   };

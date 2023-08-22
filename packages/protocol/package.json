@@ -1,5 +1,22 @@
 {
   "name": "jest-runner-remote-protocol",
   "private": true,
-  "types": "./index.d.ts"
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "wireit",
+    "test": "jest"
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc",
+      "files": [
+        "src"
+      ],
+      "output": [
+        "dist"
+      ]
+    }
+  }
 }

@@ -24,6 +24,9 @@
     },
     "build": {
       "command": "tsc",
+      "dependencies": [
+        "../protocol:build"
+      ],
       "files": [
         "./src",
         "./tsconfig.json"

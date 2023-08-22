@@ -1,6 +1,6 @@
 import type WebSocket from "isomorphic-ws";
 
-import { ClientActions } from "jest-runner-remote-protocol";
+import { ClientActions, deserialize } from "jest-runner-remote-protocol";
 import TestRunner from "jest-runner";
 import { TestWatcher } from "jest-watcher";
 
@@ -116,7 +116,7 @@ export class Client extends ClientEventEmitter {
   }
 
   private handleMessage = (data: WebSocket.Data) => {
-    const { action, args } = JSON.parse(data.toString());
+    const { action, args } = deserialize(data.toString());
     if (Array.isArray(args)) {
       this.callAction(action, ...args);
     } else {
