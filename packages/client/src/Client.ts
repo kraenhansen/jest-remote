@@ -30,7 +30,6 @@ function hydrateContext(
   watchman: boolean
 ): Promise<TestContext> {
   return Runtime.createContext(config, { maxWorkers, watchman });
-  throw new Error("Not yet implemented");
 }
 export class Client extends ClientEventEmitter {
   #config: Config;

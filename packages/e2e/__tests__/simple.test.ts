@@ -6,17 +6,20 @@ const runner = resolve(__dirname, "../../runner");
 async function runJest() {
   return runCLI(
     {
-      runner,
       _: [],
-      $0: "success.test.ts",
+      $0: "",
+      runner,
       testPathIgnorePatterns: [],
       testPathPattern: ["__tests__/__tests__"],
+      // Empty reporters to silence the inner Jest execution
+      reporters: [],
     },
-    ["__tests__"]
+    ["."]
   );
 }
 
 test("it works", async () => {
   const { results } = await runJest();
-  expect(results.success).toEqual(true);
+  expect(results.success).toEqual(false);
+  expect(results.numFailedTests).toEqual(1);
 }, 10_000);
