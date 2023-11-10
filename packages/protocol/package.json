@@ -1,5 +1,5 @@
 {
-  "name": "jest-runner-remote-protocol",
+  "name": "jest-remote-protocol",
   "private": true,
   "type": "commonjs",
   "main": "./dist/index.js",

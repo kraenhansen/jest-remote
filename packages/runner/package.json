@@ -47,6 +47,6 @@
   },
   "devDependencies": {
     "@types/ws": "^8.5.5",
-    "jest-runner-remote-protocol": "*"
+    "jest-remote-protocol": "*"
   }
 }

@@ -1,0 +1,26 @@
+{
+  "name": "jest-remote-node-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "jest",
+    "prestart": "npm run build --workspace jest-runner-remote --workspace jest-runner-remote-client"
+  },
+  "dependencies": {
+    "jest-runner-remote": "*",
+    "jest": "^29.5.0"
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true,
+      "jest": true
+    }
+  },
+  "jest": {
+    "runner": "remote"
+  },
+  "jest-remote": {
+    "command": "node runner.js",
+    "logPrefix": "node"
+  }
+}
