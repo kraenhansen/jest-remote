@@ -2,14 +2,14 @@ import { strict as assert } from "assert";
 
 import { WebSocketServer, WebSocket, RawData } from "ws";
 
-import {
+import type {
   ClientActionName,
   ClientActions,
   ServerActionName,
   ServerActions,
   deserialize,
   serialize,
-} from "jest-runner-remote-protocol";
+} from "jest-remote-protocol";
 
 export type ServerConfig = {
   port: number;

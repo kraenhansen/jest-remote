@@ -1,3 +1,3 @@
-import { JestRemoteRunner } from "./JestRemoteRunner";
+import { JestRemoteRunner } from "./JestRemoteRunner.js";
 
 export default JestRemoteRunner;

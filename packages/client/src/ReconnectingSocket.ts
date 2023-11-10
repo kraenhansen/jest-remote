@@ -1,19 +1,21 @@
 import { WebSocket, Data as WebSocketData } from "isomorphic-ws";
 
-import {
-  ServerActions,
-  ServerActionName,
-  serialize,
-} from "jest-runner-remote-protocol";
+import type { ServerActions, ServerActionName } from "jest-remote-protocol";
+import { serialize } from "jest-remote-protocol";
 
 import { ClientEventEmitter } from "./ClientEventEmitter";
+
+export type Handler = {
+  handleMessage: (data: WebSocketData) => void;
+  handleClose: (code: number, reason?: string) => void;
+};
 
 export class ReconnectingSocket {
   #socket: WebSocket | null = null;
 
   constructor(
     private eventEmitter: ClientEventEmitter,
-    private handleMessage: (data: WebSocketData) => void,
+    private handler: Handler,
     private address: string,
     private reconnect: boolean,
     private delay: number
@@ -31,9 +33,12 @@ export class ReconnectingSocket {
         }
       });
       this.#socket.once("close", (code, reason) => {
-        this.handleClose(code, reason).then(resolve, reject);
+        this.handleClose(
+          code,
+          reason instanceof Buffer ? reason.toString() : undefined
+        ).then(resolve, reject);
       });
-      this.#socket.on("message", this.handleMessage);
+      this.#socket.on("message", this.handler.handleMessage);
     });
   }
 
@@ -74,12 +79,10 @@ export class ReconnectingSocket {
     this.eventEmitter.emit("connected", ws);
   };
 
-  private async handleClose(code: number, reason: unknown) {
+  private async handleClose(code: number, reason?: string) {
     // Forget about the socket
     this.#socket = null;
-    console.log(
-      `WebSocket closed: ${reason || "Unknown reason"} (code = ${code})`
-    );
+    this.handler.handleClose(code, reason);
     if (this.reconnect) {
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, this.delay));

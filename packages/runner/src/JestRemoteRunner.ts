@@ -15,10 +15,10 @@ import {
   UnsubscribeFn,
 } from "jest-runner";
 
-import { config } from "./config";
-import { PrefixingTransform } from "./PrefixingTransform";
-import { reportProgress } from "./ui";
-import { Server } from "./Server";
+import { config } from "./config.js";
+import { PrefixingTransform } from "./PrefixingTransform.js";
+import { reportProgress } from "./ui.js";
+import { Server } from "./Server.js";
 
 type EventListener<Name extends keyof TestEvents> = (
   eventData: TestEvents[Name]
@@ -55,9 +55,8 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
       "test-file-success": (test, result) => {
         this.emit("test-file-success", test, result);
       },
-      "test-case-result": (str, result) => {
-        // TODO: Find a more semantically suitable name for `str`
-        this.emit("test-case-result", str, result);
+      "test-case-result": (filePath, result) => {
+        this.emit("test-case-result", filePath, result);
       },
     },
   });
@@ -136,6 +135,12 @@ export class JestRemoteRunner implements EmittingTestRunnerInterface {
   }
 
   private async startWorker() {
+    if (!config.command) {
+      const err = new Error("jest-runner-remote is missing a command");
+      err.stack = "";
+      throw err;
+    }
+
     this.#worker = cp.spawn(config.command, {
       shell: true,
       stdio: [process.stdin, "pipe", "pipe"],

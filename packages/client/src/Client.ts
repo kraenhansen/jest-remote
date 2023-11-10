@@ -1,6 +1,6 @@
 import type WebSocket from "isomorphic-ws";
 
-import { ClientActions, deserialize } from "jest-runner-remote-protocol";
+import { ClientActions, deserialize } from "jest-remote-protocol";
 import TestRunner from "jest-runner";
 import { TestWatcher } from "jest-watcher";
 import Runtime from "jest-runtime";
@@ -88,7 +88,10 @@ export class Client extends ClientEventEmitter {
     this.#config = { ...DEFAULT_CONFIG, ...config };
     this.#socket = new ReconnectingSocket(
       this,
-      this.handleMessage,
+      {
+        handleMessage: this.handleMessage,
+        handleClose: this.handleClose,
+      },
       this.#config.address,
       this.#config.reconnect,
       this.#config.reconnectDelay
@@ -145,5 +148,11 @@ export class Client extends ClientEventEmitter {
     } else {
       throw new Error("Expected an array of arguments");
     }
+  };
+
+  private handleClose = (code: number, reason?: string) => {
+    console.log(
+      `WebSocket closed: ${reason || "Unknown reason"} (code = ${code})`
+    );
   };
 }

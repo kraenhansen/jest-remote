@@ -1,15 +1,17 @@
 {
-  "name": "jest-runner-remote-client",
+  "name": "jest-remote-client",
   "version": "0.1.0",
   "description": "Run Jest tests anywhere - get reporting in your terminal",
   "bin": {
-    "jest-runner-remote-client": "./cli.mjs"
+    "jest-remote": "./cli.mjs"
   },
   "type": "commonjs",
   "types": "./dist/index.d.ts",
+  "react-native": "./dist/react-native/index.js",
   "exports": {
     ".": {
-      "node": "./dist/node/index.js"
+      "node": "./dist/node/index.js",
+      "react-native": "./dist/react-native/index.js"
     }
   },
   "scripts": {
@@ -48,5 +50,8 @@
     "isomorphic-ws": "^5.0.0",
     "typed-emitter": "^2.1.0",
     "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "react-native": "^0.72.6"
   }
 }
